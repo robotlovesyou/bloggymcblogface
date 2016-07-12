@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# import the environment settings
+source env.sh
+
+function exit_on_non_zero {
+  if [ $1 -ne 0 ]; then
+    echo "Error $2. Exiting"
+    exit $1
+  fi
+}
+
+# check if the network exists
+docker network inspect -f "Checking for dev network {{.Name}}: OK" $NETWORK
+if [ $? -ne 0 ]; then
+  # if not then create it
+  TASK="Creating network $NETWORK"
+  echo $TASK
+  docker network create --driver bridge $NETWORK
+  exit_on_non_zero $? $TASK
+fi
+
+# check if db container is running
+DB_STATE="$(docker inspect -f {{.State.Running}} $DB_CONTAINER)"
+if [ $? -ne 0 ]; then
+  # if it does not exist then create it and wait for it to start
+  TASK="Creating DB Container $DB_CONTAINER"
+  echo $TASK
+
+  docker run \
+  -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+  -e POSTGRES_USER=$POSTGRES_USER \
+  --net=$NETWORK \
+  --name=$DB_CONTAINER \
+  -d postgres:9
+
+  exit_on_non_zero $? $TASK
+
+  TASK="Waiting for DB Container to start"
+  echo $TASK
+  # Wait for the database to start accepting connections
+  docker run --rm -it \
+  --net=$NETWORK \
+  waitforit /wait-for-it.sh ${DB_CONTAINER}:5432
+  exit_on_non_zero $? $TASK
+
+elif [ $DB_STATE == "false" ]; then
+  # if it exists but is not running then start it
+  TASK="Starting DB Container"
+  echo $TASK
+  docker start $DB_CONTAINER
+  exit_on_non_zero $? $TASK
+else
+  echo "DB Container is already running"
+fi
+
+# run the django migrations
+docker run --rm -it \
+-e POSTGRES_USER=$POSTGRES_USER \
+-e POSTGRES_HOST=$DB_CONTAINER \
+-e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+-v /Volumes/DevHD/bloggymcblogface/src:/src \
+-p 8000:8000 \
+--net=$NETWORK \
+--name=$DJANGO_CONTAINER \
+django sh -c "cd /src/bloggy; python manage.py migrate"

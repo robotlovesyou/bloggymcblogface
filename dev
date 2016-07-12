@@ -1,0 +1,11 @@
+source dev_env.sh
+docker run --rm -it \
+-e POSTGRES_USER=$POSTGRES_USER \
+-e POSTGRES_HOST=$DB_CONTAINER \
+-e POSTGRES_PASSWORD=$PASSWORD \
+-e DJANGO_ENV=test \
+-v /Volumes/DevHD/bloggymcblogface/src:/src \
+-p 8000:8000 \
+--net=$NETWORK \
+--name=bloggy \
+django sh -c "cd /src/bloggy; python manage.py $*"

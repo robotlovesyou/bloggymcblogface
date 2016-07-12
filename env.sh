@@ -1,0 +1,5 @@
+export POSTGRES_PASSWORD="bloggypassword"
+export POSTGRES_USER="bloggy"
+export NETWORK="blog_net"
+export DB_CONTAINER="blog_db"
+export DJANGO_CONTAINER="bloggy"

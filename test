@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# Run django tests
+./manage test blog
